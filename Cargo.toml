@@ -6,3 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+yew = "0.19"
+log = "0.4.6"
+wasm-logger = "0.2.0"
+wasm-bindgen = "0.2"
+gloo = "0.8.0"
+gloo-file = "0.2.1"
+web-sys = "0.3.57"
+js-sys = "0.3.57"
+base64 ="0.13.0"
+image = "0.24.2"
