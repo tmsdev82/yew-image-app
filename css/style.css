@@ -1,0 +1,5 @@
+.ascii-art {
+    font-family: monospace;
+    white-space: pre;
+    border: 1px solid black;
+}
