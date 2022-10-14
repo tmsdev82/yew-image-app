@@ -1,5 +1,5 @@
 use gloo_file::{callbacks::FileReader, File};
-use image::DynamicImage;
+use image::{imageops, DynamicImage, GenericImageView};
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 use web_sys::{Event, HtmlInputElement};
@@ -12,6 +12,7 @@ pub enum Msg {
 
 pub struct FileDataComponent {
     files: Vec<String>,
+    asciis: Vec<String>,
     readers: HashMap<String, FileReader>,
 }
 
@@ -22,6 +23,7 @@ impl Component for FileDataComponent {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             files: Vec::new(),
+            asciis: Vec::new(),
             readers: HashMap::default(),
         }
     }
@@ -50,6 +52,7 @@ impl Component for FileDataComponent {
             Msg::LoadedBytes(file_name, data) => {
                 log::info!("Processing: {}", file_name);
                 let org_image = image::load_from_memory(&data).unwrap();
+                let ascii_art = image_to_ascii(org_image.clone(), 4);
                 let mut inverted_image = org_image.clone();
                 inverted_image.invert();
 
@@ -59,6 +62,7 @@ impl Component for FileDataComponent {
                 let inverted_data = base64::encode(&mut out);
                 self.files.push(image_data);
                 self.files.push(inverted_data);
+                self.asciis.push(ascii_art);
                 self.readers.remove(&file_name);
                 true
             }
@@ -90,6 +94,15 @@ impl Component for FileDataComponent {
                 <div>
                 { for self.files.iter().map(|f| Self::view_file(f))}
                 </div>
+                <div >
+                    {for self.asciis.iter().map(|f| {
+                        html!{
+                            <div class="ascii-art">
+                                {f}
+                            </div>
+                        }
+                    })}
+                </div>
             </div>
         }
     }
@@ -111,6 +124,35 @@ fn img_to_bytes(img: DynamicImage) -> Vec<u8> {
     cursor.read_to_end(&mut out).unwrap();
 
     out
+}
+
+fn image_to_ascii(image: DynamicImage, resolution: u32) -> String {
+    let pallete: [char; 12] = [' ', '.', ',', ':', ';', 'o', 'x', '9', '$', '%', '#', '@'];
+    let mut y = 0;
+    let mut ascii_art = String::new();
+    let small_img = image.resize(
+        image.width() / resolution,
+        image.height() / resolution,
+        imageops::FilterType::Nearest,
+    );
+    println!("Transforming image");
+    for p in small_img.pixels() {
+        if y != p.1 {
+            ascii_art.push_str("\n");
+            y = p.1;
+        }
+
+        let r = p.2 .0[0] as f32;
+        let g = p.2 .0[1] as f32;
+        let b = p.2 .0[2] as f32;
+        let k = r * 0.2126 + g * 0.7152 + b * 0.0722;
+        let character = ((k / 255.0) * (pallete.len() - 1) as f32).round() as usize;
+
+        ascii_art.push(pallete[character]);
+    }
+
+    ascii_art.push_str("\n");
+    ascii_art
 }
 
 impl FileDataComponent {
