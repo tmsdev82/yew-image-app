@@ -1,4 +1,5 @@
 use gloo_file::{callbacks::FileReader, File};
+use image::DynamicImage;
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 use web_sys::{Event, HtmlInputElement};
@@ -48,9 +49,16 @@ impl Component for FileDataComponent {
             }
             Msg::LoadedBytes(file_name, data) => {
                 log::info!("Processing: {}", file_name);
+                let org_image = image::load_from_memory(&data).unwrap();
+                let mut inverted_image = org_image.clone();
+                inverted_image.invert();
+
+                let mut out = img_to_bytes(inverted_image);
 
                 let image_data = base64::encode(data);
+                let inverted_data = base64::encode(&mut out);
                 self.files.push(image_data);
+                self.files.push(inverted_data);
                 self.readers.remove(&file_name);
                 true
             }
@@ -85,6 +93,24 @@ impl Component for FileDataComponent {
             </div>
         }
     }
+}
+
+fn img_to_bytes(img: DynamicImage) -> Vec<u8> {
+    let mut cursor = std::io::Cursor::new(Vec::new());
+    match img.write_to(&mut cursor, image::ImageFormat::Png) {
+        Ok(_c) => {
+            log::debug!("write to cursor success!");
+        }
+        Err(error) => {
+            panic!("There was an problem: {:?}", error)
+        }
+    };
+
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+    let mut out = Vec::new();
+    cursor.read_to_end(&mut out).unwrap();
+
+    out
 }
 
 impl FileDataComponent {
